@@ -1,0 +1,1345 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>TERRA² · ATLAS — live ecosystem of phoenix-1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Apple-precision live dashboard for the Terra2 (phoenix-1) ecosystem. Real-time TVL, dApps, validators, liquid staking and the chain heartbeat.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════════════════════
+   TERRA² · ATLAS — design tokens
+   palette: aurora over deep space
+   ════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-0:#05060c;
+  --bg-1:#0a0d1a;
+  --bg-2:#10142a;
+  --line:rgba(255,255,255,.06);
+  --line-2:rgba(255,255,255,.10);
+  --ink-0:#ffffff;
+  --ink-1:rgba(255,255,255,.92);
+  --ink-2:rgba(255,255,255,.66);
+  --ink-3:rgba(255,255,255,.42);
+  --ink-4:rgba(255,255,255,.22);
+  --aurora-cyan:#5dffe1;
+  --aurora-mag:#ff6ad6;
+  --aurora-vio:#b066ff;
+  --aurora-gold:#ffd267;
+  --aurora-rose:#ff8474;
+  --good:#4dffa6;
+  --bad:#ff6e7a;
+  --r-card:18px;
+  --r-pill:999px;
+  --shadow-1:0 1px 0 rgba(255,255,255,.04) inset, 0 30px 60px -30px rgba(0,0,0,.6);
+  --gloss:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0));
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg-0);color:var(--ink-1);font-family:'Inter',system-ui,-apple-system,sans-serif;font-feature-settings:"ss01","ss02","cv11";-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{min-height:100vh;overflow-x:hidden;}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+
+/* numerals look right */
+.mono,.num{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ─── ambient sky background ─────────────────────────────────── */
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+.sky-grad{position:fixed;inset:-10vh -10vw;z-index:0;pointer-events:none;opacity:.55;
+  background:
+    radial-gradient(60vw 50vh at 12% 10%, rgba(176,102,255,.18), transparent 70%),
+    radial-gradient(50vw 45vh at 88% 25%, rgba(93,255,225,.14), transparent 70%),
+    radial-gradient(70vw 60vh at 50% 110%, rgba(255,106,214,.14), transparent 65%);
+  filter:blur(60px) saturate(110%);
+}
+.scanline{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.7) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay;}
+/* aurora curtains: slow flowing waves of color */
+.curtain{position:fixed;inset:-20vh -10vw;z-index:1;pointer-events:none;filter:blur(80px);opacity:.7;mix-blend-mode:screen}
+.curtain svg{width:100%;height:100%}
+.curtain .blob{transform-origin:50% 50%;animation:drift 38s ease-in-out infinite}
+.curtain .b1{animation-duration:42s}
+.curtain .b2{animation-duration:36s;animation-delay:-8s}
+.curtain .b3{animation-duration:48s;animation-delay:-16s}
+@keyframes drift{
+  0%,100%{transform:translate(0,0) scale(1) rotate(0)}
+  33%{transform:translate(8vw,-4vh) scale(1.15) rotate(20deg)}
+  66%{transform:translate(-6vw,3vh) scale(.9) rotate(-12deg)}
+}
+@keyframes breath{
+  0%,100%{transform:scale(1);opacity:1}
+  50%{transform:scale(1.012);opacity:.96}
+}
+
+/* ─── layout shell ───────────────────────────────────────────── */
+.shell{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:24px 28px 80px}
+@media (max-width:700px){.shell{padding:16px 14px 60px}}
+
+/* ─── top heartbeat strip ────────────────────────────────────── */
+.pulsebar{
+  position:sticky;top:14px;z-index:50;
+  display:grid;grid-template-columns:auto 1fr auto auto auto;align-items:center;
+  gap:18px;padding:12px 18px;
+  border:1px solid var(--line-2);border-radius:var(--r-pill);
+  background:linear-gradient(180deg,rgba(20,22,40,.78),rgba(12,14,28,.78));
+  backdrop-filter:blur(22px) saturate(140%);
+  -webkit-backdrop-filter:blur(22px) saturate(140%);
+  box-shadow:var(--shadow-1);
+}
+@media (max-width:900px){
+  .pulsebar{grid-template-columns:auto 1fr auto;gap:10px;padding:10px 14px;border-radius:18px}
+  .pulsebar .heartbeat{grid-column:1 / -1;order:3;max-width:100%;height:28px}
+  .pulsebar #refreshPill{display:none}
+  .pulsebar .priceline{order:2}
+  .brand .sub{display:none}
+}
+@media (max-width:520px){
+  .pulsebar{grid-template-columns:auto 1fr;}
+  .pulsebar .priceline{display:none}
+  .pulsebar .pill.live{order:2}
+  .brand .name{font-size:13px}
+}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.02em}
+.brand .mark{
+  width:28px;height:28px;border-radius:8px;position:relative;overflow:hidden;
+  background:conic-gradient(from 200deg,var(--aurora-vio),var(--aurora-cyan),var(--aurora-mag),var(--aurora-vio));
+  box-shadow:0 0 24px rgba(176,102,255,.45), inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.brand .mark::after{content:"";position:absolute;inset:6px;border-radius:5px;background:var(--bg-0);}
+.brand .mark::before{content:"";position:absolute;inset:9px;border-radius:3px;background:conic-gradient(from 200deg,var(--aurora-vio),var(--aurora-cyan),var(--aurora-mag),var(--aurora-vio));animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brand .name{font-size:15px}
+.brand .name b{color:var(--aurora-cyan);font-weight:800}
+.brand .sub{font-size:11px;color:var(--ink-3);margin-top:2px;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+.brand .sub .num{font-size:10px;color:var(--ink-2);font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+.livedot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--aurora-cyan);box-shadow:0 0 8px var(--aurora-cyan);animation:livepulse 2s ease-in-out infinite}
+
+.heartbeat{height:36px;width:100%;max-width:520px;justify-self:center}
+.heartbeat svg{display:block;width:100%;height:100%}
+.heartbeat .grid{stroke:rgba(255,255,255,.05);stroke-width:1}
+.heartbeat .trace{fill:none;stroke:var(--aurora-cyan);stroke-width:1.6;filter:drop-shadow(0 0 6px rgba(93,255,225,.7))}
+
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--r-pill);background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--aurora-cyan);box-shadow:0 0 10px var(--aurora-cyan)}
+.pill.live .dot{animation:livepulse 2s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.pill .label{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3)}
+.pill .val{font-size:13px}
+
+.priceline{display:flex;align-items:baseline;gap:10px}
+.priceline .ticker{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.14em}
+.priceline .price{font-size:15px;font-weight:600}
+.delta{font-size:11px;padding:3px 7px;border-radius:6px;font-weight:600}
+.delta.up{color:var(--good);background:rgba(77,255,166,.08)}
+.delta.down{color:var(--bad);background:rgba(255,110,122,.08)}
+.delta.flat{color:var(--ink-2);background:rgba(255,255,255,.04)}
+
+/* ─── hero: title + vibe + constellation ─────────────────────── */
+.hero{margin-top:34px;display:grid;grid-template-columns:1.3fr 1fr;gap:24px}
+@media (max-width:1024px){.hero{grid-template-columns:1fr}}
+.hero-head h1{font-size:clamp(38px,5.4vw,76px);font-weight:600;letter-spacing:-.03em;line-height:.96}
+.hero-head h1 em{font-style:italic;font-weight:500;background:linear-gradient(120deg,var(--aurora-cyan),var(--aurora-vio) 50%,var(--aurora-mag));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-head .lede{margin-top:18px;color:var(--ink-2);max-width:60ch;font-size:16px;line-height:1.6;font-weight:300}
+.hero-prose{margin-top:36px;display:flex;flex-direction:column;gap:8px;font-size:15px;color:var(--ink-2);line-height:1.55;font-weight:300;max-width:55ch}
+.hero-prose p{display:flex;gap:14px;align-items:baseline}
+.hero-prose em{font-style:normal;font-weight:600;color:var(--ink-1);background:linear-gradient(120deg,var(--aurora-cyan),var(--aurora-mag));-webkit-background-clip:text;background-clip:text;color:transparent}
+.rune{color:var(--aurora-vio);font-family:'JetBrains Mono',monospace;font-size:14px;opacity:.6;flex-shrink:0}
+.dim{color:var(--ink-3);margin:0 6px}
+
+.kpi-grid{margin-top:26px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:14px 14px 12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;inset:0;background:var(--gloss);pointer-events:none}
+.kpi .k{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3)}
+.kpi .v{margin-top:6px;font-size:22px;font-weight:600;letter-spacing:-.02em}
+.kpi .u{font-size:11px;color:var(--ink-3);margin-top:2px}
+.kpi.cy .v{color:var(--aurora-cyan)}
+.kpi.mg .v{color:var(--aurora-mag)}
+.kpi.vi .v{color:var(--aurora-vio)}
+.kpi.go .v{color:var(--aurora-gold)}
+
+/* ─── vibe ring (Apple-watch style activity rings) ───────────── */
+.vibe-card{position:relative;padding:22px;border:1px solid var(--line);border-radius:var(--r-card);background:linear-gradient(180deg,rgba(20,18,40,.6),rgba(8,8,18,.4));overflow:hidden;min-height:380px}
+.vibe-card .gradorb{position:absolute;inset:auto -40px -60px auto;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,var(--aurora-vio),transparent 60%);filter:blur(60px);opacity:.45;pointer-events:none}
+.vibe-card h3{font-size:11px;text-transform:uppercase;letter-spacing:.2em;color:var(--ink-3);font-weight:600}
+.vibe-rings{display:grid;place-items:center;margin:18px 0 8px;height:220px}
+.vibe-rings svg{width:220px;height:220px;display:block;filter:drop-shadow(0 0 20px rgba(176,102,255,.25))}
+.vibe-rings .ring-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:14}
+.vibe-rings .ring-fg{fill:none;stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .9s cubic-bezier(.2,.8,.2,1)}
+.vibe-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.vibe-center .lab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+.vibe-center .vibe{font-size:36px;font-weight:700;letter-spacing:-.03em;background:linear-gradient(120deg,var(--aurora-cyan),var(--aurora-mag));-webkit-background-clip:text;background-clip:text;color:transparent}
+.vibe-center .num{font-size:11px;color:var(--ink-2);margin-top:2px}
+.vibe-legend{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px}
+.vibe-legend div{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.vibe-legend i{display:inline-block;width:8px;height:8px;border-radius:50%}
+.vibe-legend .v1{background:var(--aurora-cyan)}
+.vibe-legend .v2{background:var(--aurora-mag)}
+.vibe-legend .v3{background:var(--aurora-vio)}
+
+/* ─── section helpers ────────────────────────────────────────── */
+.section{margin-top:56px}
+.section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px}
+.section-head .num-ix{font-family:'JetBrains Mono',monospace;color:var(--aurora-cyan);font-size:11px;letter-spacing:.2em}
+.section-head h2{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.section-head .tail{margin-left:auto;color:var(--ink-3);font-size:12px}
+
+/* ─── constellation ──────────────────────────────────────────── */
+.constellation{
+  position:relative;border:1px solid var(--line);border-radius:var(--r-card);
+  background:radial-gradient(70% 90% at 50% 50%, rgba(20,22,46,.6), rgba(6,6,14,.6));
+  overflow:hidden;height:560px;
+}
+.constellation svg{position:absolute;inset:0;width:100%;height:100%}
+.cn-link{stroke:rgba(255,255,255,.06);stroke-width:1}
+.cn-node{cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.cn-node:hover{transform:scale(1.06)}
+.cn-node circle.bg{fill-opacity:.18;stroke-width:1.5}
+.cn-node circle.core{fill-opacity:.95}
+.cn-node text{fill:var(--ink-1);font-size:11px;font-weight:600;text-anchor:middle;letter-spacing:.02em}
+.cn-node text.tvl{fill:var(--ink-2);font-size:9px;font-weight:500;font-family:'JetBrains Mono',monospace}
+.cn-node.dim circle.bg,.cn-node.dim circle.core{fill-opacity:.18}
+.cn-node.dim text{opacity:.5}
+.cn-node.dim text.tvl{opacity:.4}
+.cn-legend{position:absolute;left:18px;bottom:14px;display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--ink-2);max-width:80%}
+.cn-legend span{display:inline-flex;align-items:center;gap:6px}
+.cn-legend i{display:inline-block;width:8px;height:8px;border-radius:50%}
+.cn-legend .lg-dex{background:var(--aurora-cyan)}
+.cn-legend .lg-lst{background:var(--aurora-mag)}
+.cn-legend .lg-cdp{background:var(--aurora-vio)}
+.cn-legend .lg-yld{background:var(--aurora-gold)}
+.cn-legend .lg-brg{background:#9aa6c9}
+.cn-legend .lg-nft{background:var(--aurora-rose)}
+.cn-legend .lg-dao{background:#c2f5ff}
+.cn-legend .lg-dead{background:#444}
+
+.cn-tip{position:absolute;pointer-events:none;min-width:240px;max-width:300px;
+  border:1px solid var(--line-2);border-radius:14px;
+  background:linear-gradient(180deg,rgba(28,30,50,.96),rgba(14,16,30,.96));
+  backdrop-filter:blur(18px);padding:14px;opacity:0;transform:translateY(6px);
+  transition:opacity .2s,transform .2s;z-index:5;box-shadow:0 24px 50px -10px rgba(0,0,0,.6);}
+.cn-tip.show{opacity:1;transform:translateY(0)}
+.cn-tip h4{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.cn-tip h4 i{display:inline-block;width:10px;height:10px;border-radius:50%}
+.cn-tip .cat{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.cn-tip p{font-size:12px;line-height:1.45;color:var(--ink-2);margin-top:8px}
+.cn-tip .row{display:flex;justify-content:space-between;font-size:12px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.cn-tip .row span:first-child{color:var(--ink-3)}
+.cn-tip .row span:last-child{font-family:'JetBrains Mono',monospace}
+.cn-tip a.go{display:inline-block;margin-top:10px;font-size:11px;color:var(--aurora-cyan);text-transform:uppercase;letter-spacing:.18em;font-weight:600}
+
+/* ─── card primitives ────────────────────────────────────────── */
+.cards{display:grid;gap:16px}
+.cards.cols-2{grid-template-columns:1fr 1fr}
+.cards.cols-3{grid-template-columns:1.2fr 1fr 1fr}
+.cards.cols-4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:1024px){.cards.cols-2,.cards.cols-3,.cards.cols-4{grid-template-columns:1fr}}
+.card{position:relative;padding:20px;border:1px solid var(--line);border-radius:var(--r-card);
+  background:linear-gradient(180deg,rgba(18,18,32,.6),rgba(8,9,18,.5));
+  overflow:hidden}
+.card .h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.card .h h3{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.card .h .sub{font-size:11px;color:var(--ink-3)}
+
+/* ─── tide (TVL chart) ───────────────────────────────────────── */
+.tide{padding:0;overflow:hidden;border-radius:24px}
+.tide svg{width:100%;height:300px;display:block}
+.tide .area{fill:url(#tvlgrad)}
+.tide .area2{fill:url(#tvlgrad2)}
+.tide .line{stroke:var(--aurora-cyan);stroke-width:2;fill:none;filter:drop-shadow(0 0 8px rgba(93,255,225,.5))}
+.tide .now-dot{fill:var(--aurora-mag);filter:drop-shadow(0 0 8px var(--aurora-mag));animation:breath 3s ease-in-out infinite}
+.tide-foot{padding:20px 28px 22px;display:flex;align-items:center;gap:14px;color:var(--ink-2);font-size:13px;font-weight:300;flex-wrap:wrap}
+.tide-foot em{font-style:normal;color:var(--aurora-cyan);font-weight:500}
+.tide-foot #tideRange{color:var(--ink-3);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em}
+
+/* ─── twin stars (liquid LUNA) ───────────────────────────────── */
+.twin-card{padding:28px;border-radius:24px;text-align:center}
+.twin-svg{width:100%;height:280px;display:block;margin:0 auto}
+.twin-orb{cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.2,1);animation:breath 4s ease-in-out infinite}
+.twin-orb:hover{transform:scale(1.08)}
+.twin-prose{color:var(--ink-2);font-size:14px;font-weight:300;line-height:1.6;max-width:55ch;margin:8px auto 0}
+.twin-prose em{font-style:normal;color:var(--aurora-mag);font-weight:500}
+.twin-prose .rune{color:var(--aurora-vio);margin:0 4px}
+
+/* ─── orbit-foot ─────────────────────────────────────────────── */
+.orbit-foot{margin-top:14px;color:var(--ink-2);font-size:13px;font-weight:300;text-align:center;line-height:1.6}
+.orbit-foot em{font-style:normal;color:var(--aurora-cyan);font-weight:500}
+
+.orbit svg{filter:drop-shadow(0 0 30px rgba(176,102,255,.18))}
+
+/* ─── horizontal stat bars ───────────────────────────────────── */
+.bars{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.bar{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;font-size:12px}
+.bar .name{color:var(--ink-1);font-weight:500;display:flex;align-items:center;gap:6px}
+.bar .name i{width:8px;height:8px;border-radius:2px}
+.bar .v{font-family:'JetBrains Mono',monospace;color:var(--ink-2);font-size:11px}
+.bar .track{grid-column:1 / -1;height:6px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden}
+.bar .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--aurora-cyan),var(--aurora-vio));transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.bar.dex .fill{background:linear-gradient(90deg,var(--aurora-cyan),#0fb1a1)}
+.bar.lst .fill{background:linear-gradient(90deg,var(--aurora-mag),#cf3aa3)}
+.bar.cdp .fill{background:linear-gradient(90deg,var(--aurora-vio),#5734b8)}
+.bar.yld .fill{background:linear-gradient(90deg,var(--aurora-gold),#9d7300)}
+.bar.brg .fill{background:linear-gradient(90deg,#aab2cc,#5c627a)}
+
+/* ─── liquid-staking comparison ──────────────────────────────── */
+.lst-comp{display:grid;gap:14px}
+.lst-row{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025)}
+.lst-row .nm{display:flex;align-items:center;gap:10px}
+.lst-row .nm .badge{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;color:#0a0814}
+.lst-row .nm .badge.amp{background:linear-gradient(135deg,var(--aurora-mag),var(--aurora-vio))}
+.lst-row .nm .badge.bone{background:linear-gradient(135deg,#a8b3d4,#5c6783);color:#fff}
+.lst-row .nm .nm-text{display:flex;flex-direction:column}
+.lst-row .nm .nm-text b{font-size:14px}
+.lst-row .nm .nm-text span{font-size:11px;color:var(--ink-3)}
+.lst-row .stat{display:flex;flex-direction:column;justify-content:center}
+.lst-row .stat .label{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3)}
+.lst-row .stat .v{font-size:18px;font-weight:600;font-family:'JetBrains Mono',monospace;letter-spacing:-.01em;margin-top:3px}
+.lst-row .stat .delta{margin-top:2px;align-self:flex-start}
+
+/* ─── validator orbit ────────────────────────────────────────── */
+.orbit{position:relative;height:520px;border:1px solid var(--line);border-radius:var(--r-card);background:radial-gradient(60% 80% at 50% 50%, rgba(30,20,60,.4), rgba(6,6,14,.6));overflow:hidden}
+.orbit svg{position:absolute;inset:0;width:100%;height:100%}
+.orbit .ring{fill:none;stroke:rgba(255,255,255,.06);stroke-dasharray:1 5}
+.orbit .planet{cursor:pointer;transition:transform .25s}
+.orbit .planet:hover{transform:scale(1.18)}
+.orbit .planet circle{fill:url(#planetGrad);stroke:rgba(255,255,255,.2)}
+.orbit .planet text{fill:var(--ink-1);font-size:10px;text-anchor:middle;font-weight:600}
+.orbit .star{fill:url(#chainCore);filter:drop-shadow(0 0 30px var(--aurora-vio))}
+.orbit .core-label{fill:var(--ink-1);font-size:13px;font-weight:700;text-anchor:middle;letter-spacing:.04em}
+.orbit-list{position:absolute;right:16px;top:16px;width:280px;max-height:calc(100% - 32px);overflow-y:auto;
+  border:1px solid var(--line);border-radius:14px;background:rgba(10,11,22,.7);backdrop-filter:blur(14px);padding:12px;font-size:12px}
+.orbit-list h4{font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:var(--ink-3);margin-bottom:8px}
+.orbit-list ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.orbit-list li{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:6px 4px;border-radius:6px}
+.orbit-list li:hover{background:rgba(255,255,255,.04)}
+.orbit-list li .ix{font-family:'JetBrains Mono',monospace;color:var(--ink-3);font-size:10px}
+.orbit-list li .nm{color:var(--ink-1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.orbit-list li .stk{font-family:'JetBrains Mono',monospace;color:var(--ink-2);font-size:11px}
+@media (max-width:760px){.orbit-list{position:relative;width:100%;right:auto;top:auto;margin-top:12px;max-height:240px}}
+
+/* ─── solid spotlight ────────────────────────────────────────── */
+.solid-spot{position:relative;padding:0;border:1px solid rgba(176,102,255,.25);border-radius:var(--r-card);
+  background:linear-gradient(135deg,rgba(176,102,255,.08),rgba(255,106,214,.05) 50%,rgba(93,255,225,.05));
+  overflow:hidden}
+.solid-spot::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 90% at 0% 0%,rgba(176,102,255,.18),transparent 60%);pointer-events:none}
+.solid-spot::after{content:"";position:absolute;inset:0;background:radial-gradient(50% 60% at 100% 100%,rgba(255,106,214,.12),transparent 70%);pointer-events:none}
+.solid-spot .inner{position:relative;padding:28px;display:grid;grid-template-columns:1.2fr 1fr;gap:32px}
+@media (max-width:1024px){.solid-spot .inner{grid-template-columns:1fr}}
+.solid-tag{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--aurora-vio);font-weight:700;padding:5px 9px;border:1px solid rgba(176,102,255,.3);border-radius:var(--r-pill);background:rgba(176,102,255,.06)}
+.solid-spot h2{margin-top:14px;font-size:32px;font-weight:700;letter-spacing:-.02em}
+.solid-spot h2 em{font-style:normal;background:linear-gradient(120deg,var(--aurora-vio),var(--aurora-mag),var(--aurora-cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+.solid-spot p.lede{margin-top:10px;color:var(--ink-2);font-size:14px;line-height:1.55;max-width:55ch}
+.solid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+@media (max-width:700px){.solid-grid{grid-template-columns:repeat(2,1fr)}}
+.solid-cell{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,8,18,.4)}
+.solid-cell .nm{font-size:13px;font-weight:600}
+.solid-cell .nm i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--aurora-cyan);margin-right:6px;box-shadow:0 0 6px var(--aurora-cyan)}
+.solid-cell .desc{margin-top:4px;font-size:11px;color:var(--ink-3);line-height:1.4}
+.solid-cell.coming .nm i{background:var(--aurora-gold);box-shadow:0 0 6px var(--aurora-gold)}
+
+.solid-side{display:flex;flex-direction:column;justify-content:center;gap:14px}
+.solid-quote{padding:22px;border:1px solid rgba(176,102,255,.18);border-radius:18px;background:rgba(8,8,18,.4);position:relative}
+.solid-quote .rune{position:absolute;top:-12px;left:18px;background:var(--bg-0);padding:0 8px;font-size:18px;color:var(--aurora-vio)}
+.solid-quote p{margin-top:8px;font-size:18px;font-weight:300;line-height:1.45;color:var(--ink-1)}
+.solid-quote p:first-of-type{margin-top:6px}
+.solid-quote em{font-style:normal;color:var(--aurora-vio);font-weight:500}
+.solid-quote i{font-style:italic;color:var(--aurora-mag);font-weight:400}
+.solid-meta{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.16em}
+.solid-meta b{color:var(--aurora-cyan);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;text-transform:none;letter-spacing:0}
+
+/* ─── opportunity / dead venues ──────────────────────────────── */
+.frontier{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:900px){.frontier{grid-template-columns:1fr}}
+.frontier .col{padding:22px;border:1px solid var(--line);border-radius:var(--r-card);background:rgba(255,255,255,.025)}
+.frontier h3{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.frontier h3 i{width:8px;height:8px;border-radius:50%}
+.frontier h3 i.alive{background:var(--good);box-shadow:0 0 8px var(--good)}
+.frontier h3 i.gone{background:#666}
+.frontier ul{margin-top:14px;list-style:none;display:flex;flex-direction:column;gap:8px}
+.frontier li{padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.02);font-size:14px;font-weight:300;color:var(--ink-1)}
+.frontier li .nm{font-weight:400}
+.frontier li.dead{opacity:.4;text-decoration:line-through;color:var(--ink-2)}
+.frontier li.dead .nm{font-weight:300}
+
+/* ─── footer ─────────────────────────────────────────────────── */
+footer{margin-top:80px;padding-top:30px;border-top:1px solid var(--line);color:var(--ink-3);font-size:11px;display:grid;grid-template-columns:1fr auto;gap:14px}
+footer a{color:var(--ink-2)}
+footer a:hover{color:var(--aurora-cyan)}
+footer .sources{display:flex;flex-wrap:wrap;gap:14px}
+footer .meta{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+footer .build-tag{font-family:'JetBrains Mono',monospace;color:var(--aurora-cyan);font-size:10px;letter-spacing:.16em}
+
+/* number tick effect */
+.tick{display:inline-block;transition:filter .3s;}
+.tick.flash{animation:tickflash .8s ease-out}
+@keyframes tickflash{0%{color:var(--aurora-cyan);filter:drop-shadow(0 0 8px var(--aurora-cyan))}100%{}}
+
+/* loaded state */
+.skeleton{display:inline-block;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.12),rgba(255,255,255,.04));background-size:200% 100%;animation:shimmer 1.6s infinite;border-radius:4px;color:transparent !important}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* tooltip portal-side details */
+.detail-panel{position:fixed;right:20px;top:90px;width:380px;max-height:calc(100vh - 110px);overflow-y:auto;
+  border:1px solid var(--line-2);border-radius:18px;background:linear-gradient(180deg,rgba(20,20,38,.94),rgba(10,10,22,.94));
+  backdrop-filter:blur(22px);padding:22px;z-index:60;
+  transform:translateX(440px);transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  box-shadow:-20px 30px 80px -10px rgba(0,0,0,.7);}
+.detail-panel.open{transform:translateX(0)}
+.detail-panel .x{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:18px;color:var(--ink-2)}
+.detail-panel .x:hover{background:rgba(255,255,255,.1);color:var(--ink-1)}
+.detail-panel h3{font-size:20px;font-weight:600;display:flex;align-items:center;gap:10px}
+.detail-panel h3 i{width:12px;height:12px;border-radius:50%}
+.detail-panel .cat{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.detail-panel p{font-size:13px;color:var(--ink-2);line-height:1.55;margin-top:12px}
+.detail-panel .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.detail-panel .row span:first-child{color:var(--ink-3)}
+.detail-panel .row span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink-1)}
+.detail-panel a.cta{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:12px 14px;
+  border:1px solid var(--line-2);border-radius:12px;background:rgba(255,255,255,.03);font-size:12px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.18em}
+.detail-panel a.cta:hover{background:rgba(93,255,225,.06);border-color:rgba(93,255,225,.3);color:var(--aurora-cyan)}
+.detail-panel .arrow{transition:transform .25s}
+.detail-panel a.cta:hover .arrow{transform:translateX(4px)}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(2px);z-index:55;opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.open{opacity:1;pointer-events:auto}
+
+@media (max-width:700px){.detail-panel{right:0;left:0;top:auto;bottom:0;width:auto;border-radius:18px 18px 0 0;transform:translateY(100%);max-height:80vh}.detail-panel.open{transform:translateY(0)}}
+
+/* mini sparkline */
+.spark{display:inline-block;width:80px;height:22px;vertical-align:middle;margin-left:8px}
+.spark path{fill:none;stroke:currentColor;stroke-width:1.5}
+</style>
+</head>
+<body>
+
+<canvas id="sky"></canvas>
+<div class="sky-grad"></div>
+<div class="curtain" aria-hidden="true">
+  <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+    <ellipse class="blob b1" cx="20" cy="30" rx="40" ry="22" fill="#b066ff"/>
+    <ellipse class="blob b2" cx="78" cy="55" rx="36" ry="28" fill="#5dffe1"/>
+    <ellipse class="blob b3" cx="48" cy="80" rx="48" ry="20" fill="#ff6ad6"/>
+  </svg>
+</div>
+<div class="scanline"></div>
+
+<div class="shell">
+
+  <!-- ════════════ pulsebar ════════════ -->
+  <div class="pulsebar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div>
+        <div class="name">TERRA<sup style="font-size:.7em">2</sup> · <b>ATLAS</b></div>
+        <div class="sub">phoenix-1 <span class="livedot"></span> <span id="blockHeight" class="num">—</span></div>
+      </div>
+    </div>
+
+    <div class="heartbeat" id="heartbeat" aria-hidden="true">
+      <svg viewBox="0 0 600 36" preserveAspectRatio="none">
+        <line class="grid" x1="0" y1="18" x2="600" y2="18"/>
+        <path class="trace" id="hbTrace" d="M0,18"/>
+      </svg>
+    </div>
+
+    <div class="priceline" title="LUNA 2.0 spot price">
+      <span class="ticker">LUNA</span>
+      <span class="price mono" id="lunaPrice">—</span>
+      <span class="delta flat" id="lunaDelta">—</span>
+    </div>
+  </div>
+
+  <!-- ════════════ hero ════════════ -->
+  <section class="hero">
+    <div class="hero-head">
+      <h1>The chain that <em>refused to die</em>,<br>now <em>breathing</em> in real time.</h1>
+      <p class="lede">A living map of phoenix-1 — every protocol still alive, every validator securing the chain, every block as it lands. No tables. No spreadsheets. Just the pulse.</p>
+
+      <div class="hero-prose">
+        <p><span class="rune">∼</span> <span id="proseLine1">the ecosystem holds <em id="proseTvl">—</em>, secured by <em id="proseVals">—</em> validators</span></p>
+        <p><span class="rune">∼</span> <span id="proseLine2"><em id="proseProtos">—</em> protocols still draw breath here</span></p>
+        <p><span class="rune">∼</span> <span id="proseLine3">the mood today reads <em id="proseMood">—</em></span></p>
+      </div>
+    </div>
+
+    <div class="vibe-card">
+      <div class="gradorb"></div>
+      <h3>Ecosystem vibe</h3>
+      <div class="vibe-rings" style="position:relative">
+        <svg viewBox="0 0 200 200">
+          <g transform="translate(100 100) rotate(-90)">
+            <circle class="ring-bg" r="80"/>
+            <circle class="ring-fg" id="ringTvl" r="80" stroke="url(#gradTvl)" pathLength="100" stroke-dasharray="0 100"/>
+            <circle class="ring-bg" r="62"/>
+            <circle class="ring-fg" id="ringPx" r="62" stroke="url(#gradPx)" pathLength="100" stroke-dasharray="0 100"/>
+            <circle class="ring-bg" r="44"/>
+            <circle class="ring-fg" id="ringAct" r="44" stroke="url(#gradAct)" pathLength="100" stroke-dasharray="0 100"/>
+          </g>
+          <defs>
+            <linearGradient id="gradTvl" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#5dffe1"/><stop offset="1" stop-color="#0fb1a1"/></linearGradient>
+            <linearGradient id="gradPx" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ff6ad6"/><stop offset="1" stop-color="#cf3aa3"/></linearGradient>
+            <linearGradient id="gradAct" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#b066ff"/><stop offset="1" stop-color="#5734b8"/></linearGradient>
+          </defs>
+        </svg>
+        <div class="vibe-center">
+          <div class="lab">Terra² mood</div>
+          <div class="vibe num" id="vibeWord">—</div>
+          <div class="num" id="vibeScore">—</div>
+        </div>
+      </div>
+      <div class="vibe-legend">
+        <div><i class="v1"></i><span>tvl 7d</span></div>
+        <div><i class="v2"></i><span>price 24h</span></div>
+        <div><i class="v3"></i><span>active</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ section: constellation ════════════ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num-ix">01 · MAP</span>
+      <h2>The Constellation</h2>
+      <span class="tail">click a star to inspect · size = TVL · faded = dormant</span>
+    </div>
+    <div class="constellation" id="constellation">
+      <svg viewBox="0 0 1000 560" id="cnSvg">
+        <defs>
+          <radialGradient id="haloDex"><stop offset="0" stop-color="#5dffe1" stop-opacity=".9"/><stop offset="1" stop-color="#5dffe1" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloLst"><stop offset="0" stop-color="#ff6ad6" stop-opacity=".9"/><stop offset="1" stop-color="#ff6ad6" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloCdp"><stop offset="0" stop-color="#b066ff" stop-opacity=".9"/><stop offset="1" stop-color="#b066ff" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloYld"><stop offset="0" stop-color="#ffd267" stop-opacity=".9"/><stop offset="1" stop-color="#ffd267" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloBrg"><stop offset="0" stop-color="#9aa6c9" stop-opacity=".9"/><stop offset="1" stop-color="#9aa6c9" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloNft"><stop offset="0" stop-color="#ff8474" stop-opacity=".9"/><stop offset="1" stop-color="#ff8474" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloDao"><stop offset="0" stop-color="#c2f5ff" stop-opacity=".9"/><stop offset="1" stop-color="#c2f5ff" stop-opacity="0"/></radialGradient>
+          <radialGradient id="haloDead"><stop offset="0" stop-color="#777" stop-opacity=".4"/><stop offset="1" stop-color="#777" stop-opacity="0"/></radialGradient>
+        </defs>
+        <g id="cnLinks"></g>
+        <g id="cnNodes"></g>
+      </svg>
+      <div class="cn-legend">
+        <span><i class="lg-dex"></i>DEX</span>
+        <span><i class="lg-lst"></i>liquid staking</span>
+        <span><i class="lg-cdp"></i>CDP</span>
+        <span><i class="lg-yld"></i>yield</span>
+        <span><i class="lg-brg"></i>bridge / infra</span>
+        <span><i class="lg-nft"></i>NFT</span>
+        <span><i class="lg-dao"></i>DAO / launchpad</span>
+        <span><i class="lg-dead"></i>dormant</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ section: tide ════════════ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num-ix">02 · TIDE</span>
+      <h2>The thirty-day breath</h2>
+      <span class="tail">where the weight has settled</span>
+    </div>
+    <div class="card tide">
+      <svg viewBox="0 0 600 280" id="tvlSvg" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="tvlgrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="rgba(93,255,225,.45)"/>
+            <stop offset="1" stop-color="rgba(93,255,225,0)"/>
+          </linearGradient>
+          <linearGradient id="tvlgrad2" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="rgba(176,102,255,.25)"/>
+            <stop offset="1" stop-color="rgba(176,102,255,0)"/>
+          </linearGradient>
+        </defs>
+        <path class="area2" id="tvlArea2" d="" fill="url(#tvlgrad2)"/>
+        <path class="area" id="tvlArea" d=""/>
+        <path class="line" id="tvlLine" d=""/>
+        <circle class="now-dot" id="tvlNowDot" r="5" cx="0" cy="0"/>
+      </svg>
+      <div class="tide-foot">
+        <span id="tideRange">—</span>
+        <span class="rune">∞</span>
+        <span><em id="tideHi">—</em> at the crest <span class="dim">·</span> <em id="tideLo">—</em> at the trough</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ section: twin stars (liquid LUNA) ════════════ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num-ix">03 · TWIN STARS</span>
+      <h2>Liquid LUNA</h2>
+      <span class="tail">two derivatives circling the same anchor</span>
+    </div>
+    <div class="card twin-card">
+      <svg viewBox="0 0 700 260" id="twinSvg" class="twin-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <radialGradient id="ampGrad"><stop offset="0" stop-color="#ff9be4" stop-opacity=".95"/><stop offset=".4" stop-color="#ff6ad6" stop-opacity=".75"/><stop offset="1" stop-color="#ff6ad6" stop-opacity="0"/></radialGradient>
+          <radialGradient id="boneGrad"><stop offset="0" stop-color="#dde4f5" stop-opacity=".95"/><stop offset=".4" stop-color="#9aa6c9" stop-opacity=".7"/><stop offset="1" stop-color="#9aa6c9" stop-opacity="0"/></radialGradient>
+          <radialGradient id="lunaGrad"><stop offset="0" stop-color="#ffffff" stop-opacity="1"/><stop offset=".5" stop-color="#5dffe1" stop-opacity=".7"/><stop offset="1" stop-color="#5dffe1" stop-opacity="0"/></radialGradient>
+        </defs>
+        <g id="twinOrbits"></g>
+        <circle id="twinAnchor" cx="350" cy="130" r="32" fill="url(#lunaGrad)"/>
+        <text x="350" y="134" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" letter-spacing=".05em" font-family="Inter">LUNA</text>
+        <g id="twinAmp" class="twin-orb" data-key="amp">
+          <circle r="42" fill="url(#ampGrad)"/>
+          <text y="6" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" font-family="Inter">ampLUNA</text>
+        </g>
+        <g id="twinBone" class="twin-orb" data-key="bone">
+          <circle r="26" fill="url(#boneGrad)"/>
+          <text y="5" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" font-family="Inter">boneLUNA</text>
+        </g>
+      </svg>
+      <p class="twin-prose" id="twinProse">two derivatives, one chain — <em id="ampLine">ampLUNA</em> dominant, <em id="boneLine">boneLUNA</em> a smaller orbit. <span class="rune">·</span> hover an orb for the numbers.</p>
+    </div>
+  </section>
+
+  <!-- ════════════ section: validator orbit ════════════ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num-ix">04 · BACKBONE</span>
+      <h2>Validator orbit</h2>
+      <span class="tail">top 10 by stake · live LCD</span>
+    </div>
+    <div class="orbit" id="orbit">
+      <svg viewBox="0 0 1000 520" id="orbitSvg">
+        <defs>
+          <radialGradient id="chainCore">
+            <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+            <stop offset=".3" stop-color="#b066ff" stop-opacity=".9"/>
+            <stop offset="1" stop-color="#5dffe1" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="planetGrad">
+            <stop offset="0" stop-color="#fff" stop-opacity=".95"/>
+            <stop offset=".4" stop-color="#5dffe1" stop-opacity=".7"/>
+            <stop offset="1" stop-color="#5dffe1" stop-opacity=".15"/>
+          </radialGradient>
+        </defs>
+        <circle class="ring" cx="500" cy="260" r="130"/>
+        <circle class="ring" cx="500" cy="260" r="185"/>
+        <circle class="ring" cx="500" cy="260" r="240"/>
+        <g id="orbitPlanets"></g>
+        <g id="chainCoreGroup">
+          <circle class="star" cx="500" cy="260" r="48"/>
+          <text class="core-label" x="500" y="263">phoenix-1</text>
+        </g>
+      </svg>
+    </div>
+    <p class="orbit-foot">ten guardians keeping phoenix-1 alive · hover a planet to see who · <em id="orbitTotal">—</em> LUNA in the top tier</p>
+  </section>
+
+  <!-- ════════════ section: SOLID spotlight ════════════ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num-ix">05 · SPOTLIGHT</span>
+      <h2>Solid Protocol</h2>
+      <span class="tail">the only CDP, the next NFT venue</span>
+    </div>
+    <div class="solid-spot">
+      <div class="inner">
+        <div>
+          <div class="solid-tag">⚡ home turf</div>
+          <h2>The <em>only ones</em> still building lending, NFTs and yield <em>natively</em> on Terra2.</h2>
+          <p class="lede">No incumbent CDP. No active NFT marketplace. No native perps venue. Solid Protocol is filling each gap with one stack — collateralized stablecoin (CAPA), liquid-LUNA-backed amplifier (ampCAPA), an NFT marketplace (Astral) and treasury machinery (Atrium / Peg Press). When the ecosystem charts above show "white space," this is who paints it.</p>
+          <div class="solid-grid">
+            <div class="solid-cell"><div class="nm"><i></i>CAPA</div><div class="desc">USD-pegged stable, minted against ampLUNA collateral.</div></div>
+            <div class="solid-cell"><div class="nm"><i></i>ampCAPA</div><div class="desc">Yield-bearing CAPA receipt — protocol revenue accrues here.</div></div>
+            <div class="solid-cell coming"><div class="nm"><i></i>Astral</div><div class="desc">NFT marketplace built on Terra2 — incumbents departed.</div></div>
+            <div class="solid-cell"><div class="nm"><i></i>Atrium</div><div class="desc">DAO &amp; treasury layer for collateral &amp; emissions.</div></div>
+            <div class="solid-cell"><div class="nm"><i></i>Peg Press</div><div class="desc">Surgical harvest: extracts protocol value to treasury.</div></div>
+            <div class="solid-cell coming"><div class="nm"><i></i>Crystals</div><div class="desc">Mint &amp; fusion ritual that converts dormant LST into CAPA.</div></div>
+          </div>
+        </div>
+        <div class="solid-side">
+          <div class="solid-quote">
+            <span class="rune">⌬</span>
+            <p>The only live <em>CDP</em> on phoenix-1.</p>
+            <p>The next <em>NFT venue</em> on phoenix-1.</p>
+            <p>The competitive moat is <i>nobody else is here</i>.</p>
+            <div class="solid-meta"><span>vault</span><b id="solidTvl">—</b><span>·</span><span>CAPA</span><b id="capaPrice">—</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ section: frontier ════════════ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num-ix">06 · FRONTIER</span>
+      <h2>Alive vs. departed</h2>
+      <span class="tail">a candid view</span>
+    </div>
+    <div class="frontier">
+      <div class="col">
+        <h3><i class="alive"></i>Still beating</h3>
+        <p style="color:var(--ink-3);font-size:12px;line-height:1.5">Protocols with non-trivial Terra2 TVL or recent on-chain activity in 2026.</p>
+        <ul id="aliveList"></ul>
+      </div>
+      <div class="col">
+        <h3><i class="gone"></i>Departed or dormant</h3>
+        <p style="color:var(--ink-3);font-size:12px;line-height:1.5">Once-prominent venues that have wound down on Terra2 — open lanes for whoever shows up next.</p>
+        <ul id="deadList">
+          <li class="dead"><span class="nm">Knowhere Art</span></li>
+          <li class="dead"><span class="nm">Talis</span></li>
+          <li class="dead"><span class="nm">Random Earth</span></li>
+          <li class="dead"><span class="nm">OnePlanet</span></li>
+          <li class="dead"><span class="nm">Pylon Protocol</span></li>
+          <li class="dead"><span class="nm">Levana Perps</span></li>
+          <li class="dead"><span class="nm">Mars Protocol</span></li>
+          <li class="dead"><span class="nm">Stader LunaX</span></li>
+          <li class="dead"><span class="nm">Spectrum</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="sources">
+      <span>data:</span>
+      <a href="https://defillama.com/chain/Terra2" target="_blank" rel="noopener">DefiLlama</a>
+      <a href="https://www.coingecko.com/en/coins/terra-luna-2" target="_blank" rel="noopener">CoinGecko</a>
+      <a href="https://terra-rest.publicnode.com" target="_blank" rel="noopener">PublicNode LCD</a>
+      <a href="https://ping.pub/terra2" target="_blank" rel="noopener">ping.pub</a>
+      <a href="https://terra.smartstake.io" target="_blank" rel="noopener">Smart Stake</a>
+    </div>
+    <div class="meta">
+      <div class="build-tag">TERRA² · ATLAS · build 1.0</div>
+      <div>refresh every 15s · heartbeat every 4s · refreshed <span id="footerStamp" class="mono">—</span></div>
+    </div>
+  </footer>
+</div>
+
+<!-- ═════════════ detail panel ═════════════ -->
+<div class="scrim" id="scrim"></div>
+<aside class="detail-panel" id="detail">
+  <button class="x" id="detailClose" aria-label="close">×</button>
+  <h3 id="dHead">—</h3>
+  <div class="cat" id="dCat">—</div>
+  <p id="dDesc">—</p>
+  <div id="dStats"></div>
+  <a class="cta" id="dLink" target="_blank" rel="noopener">visit <span class="arrow">→</span></a>
+</aside>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   TERRA² · ATLAS — runtime
+   pure vanilla, no deps. fetches:
+     · Terra LCD (terra-rest.publicnode.com)  block, supply, pool, validators, inflation
+     · CoinGecko v3                           luna/ampLUNA/boneLUNA/CAPA prices + sparkline
+     · DefiLlama                              chain tvl history + per-protocol Terra2 tvl
+   ════════════════════════════════════════════════════════════════ */
+
+const $ = (id) => document.getElementById(id);
+
+const ENDPOINTS = {
+  lcd: 'https://terra-rest.publicnode.com',
+  gecko: 'https://api.coingecko.com/api/v3',
+  llamaProtos: 'https://api.llama.fi/protocols',
+  llamaChainHist: 'https://api.llama.fi/v2/historicalChainTvl/Terra2',
+  llamaCoins: 'https://coins.llama.fi/prices/current',
+  llamaPct: 'https://coins.llama.fi/percentage',
+};
+const COIN_IDS = {
+  'terra-luna-2':'LUNA',
+  'eris-amplified-luna':'ampLUNA',
+  'backbone-labs-staked-luna':'boneLUNA',
+  'capapult':'CAPA',
+};
+
+/* ─── known dApps with hand-curated metadata ────────────────────
+   TVL is overwritten from DefiLlama at runtime; the rest stays static. */
+const DAPPS = [
+  { slug:'astroport',      name:'Astroport',      cat:'dex', url:'https://astroport.fi',                desc:'Dominant DEX on Terra2 — concentrated &amp; xyk pools, the chain\'s primary liquidity venue.', x:540, y:280 },
+  { slug:'eris-protocol',  name:'Eris Protocol',  cat:'lst', url:'https://www.erisprotocol.com',        desc:'Liquid staking via ampLUNA — the de-facto LST and primary collateral for Terra2 DeFi.',     x:360, y:200 },
+  { slug:'white-whale-dex',name:'White Whale',    cat:'dex', url:'https://app.whitewhale.money',        desc:'Migaloo-aligned DEX with arbitrage flash-loan flows; secondary venue on Terra2.',            x:680, y:340 },
+  { slug:'backbone-labs',  name:'BackBone Labs',  cat:'lst', url:'https://app.backbonelabs.io',         desc:'Alternative liquid-staking protocol issuing boneLUNA. Distant second to Eris.',              x:240, y:130 },
+  { slug:'solid',          name:'SOLID',          cat:'cdp', url:'https://app.solidcapa.com',           desc:'The only live CDP / stablecoin protocol on Terra2 (CAPA, ampCAPA, Atrium, Peg Press).',       x:430, y:380, featured:true },
+  { slug:'terraswap',      name:'Terraswap',      cat:'dex', url:'https://terraswap.io',                desc:'Original constant-product DEX. Largely legacy in 2026; minimal liquidity.',                  x:740, y:200 },
+  { slug:'spectrum-protocol',name:'Spectrum',     cat:'yld', url:'https://spec.finance',                desc:'Yield aggregator from the Terra Classic era — residual TVL.',                                x:160, y:300, dim:true },
+  { slug:'stride',         name:'Stride',         cat:'lst', url:'https://stride.zone',                 desc:'Cross-chain LST hub — mints stTIA-style LSTs; small Terra2 footprint via stLUNA.',           x:840, y:240 },
+  { slug:'phoenix-dex',    name:'Phoenix DEX',    cat:'dex', url:'https://phoenixfi.so',                desc:'Early Terra2 DEX. Effectively dormant; almost no trading activity in 2026.',                 x:140, y:430, dim:true },
+  { slug:'ura-dex',        name:'Ura Dex',        cat:'dex', url:'#',                                   desc:'Tiny DEX — minimal pools.',                                                                  x:90,  y:140, dim:true },
+  { slug:'prism-protocol', name:'PRISM',          cat:'yld', url:'https://home.prismprotocol.app',      desc:'Yield tokenization protocol that never recovered after 2022.',                              x:870, y:430, dim:true },
+  { slug:'cavern',         name:'Cavern',         cat:'cdp', url:'https://cavernprotocol.com',          desc:'Solo-built lending protocol — alive but pre-launch UX in 2026.',                            x:600, y:460 },
+  { slug:'enterprise',     name:'Enterprise',     cat:'dao', url:'https://enterprise.money',            desc:'No-code DAO platform from ex-TFL team; cross-chain DAO treasuries.',                        x:260, y:460 },
+  { slug:'astral',         name:'Astral',         cat:'nft', url:'https://app.solidcapa.com',           desc:'Solid Protocol\'s upcoming NFT marketplace. Knowhere/Talis are gone — the venue is open.', x:500, y:140, featured:true, coming:true },
+  { slug:'hallswap',       name:'Hallswap',       cat:'brg', url:'https://coinhall.org',                desc:'Coinhall\'s aggregator — routes through Astroport. Infrastructure, not a venue.',           x:780, y:430 },
+];
+
+const CAT_INFO = {
+  dex:{label:'DEX',          fill:'#5dffe1', halo:'haloDex'},
+  lst:{label:'liquid staking',fill:'#ff6ad6', halo:'haloLst'},
+  cdp:{label:'CDP',          fill:'#b066ff', halo:'haloCdp'},
+  yld:{label:'yield',         fill:'#ffd267', halo:'haloYld'},
+  brg:{label:'bridge / infra',fill:'#9aa6c9', halo:'haloBrg'},
+  nft:{label:'NFT',           fill:'#ff8474', halo:'haloNft'},
+  dao:{label:'DAO',           fill:'#c2f5ff', halo:'haloDao'},
+};
+
+const STATE = {
+  height:0, prevHeight:0,
+  blockTimes:[],
+  prices:null,
+  protos:[],
+  chainTvlHist:[],
+  validators:[],
+  pool:null, supply:null, inflation:0,
+  lastRefresh:0,
+  detailFor:null,
+};
+
+/* ─── tiny helpers ─────────────────────────────────────────── */
+const fmtUsd=(n,o={})=>{
+  if(n==null||isNaN(n)) return '—';
+  const a=Math.abs(n);
+  if(a>=1e9) return '$'+(n/1e9).toFixed(o.d??2)+'B';
+  if(a>=1e6) return '$'+(n/1e6).toFixed(o.d??2)+'M';
+  if(a>=1e3) return '$'+(n/1e3).toFixed(o.d??1)+'k';
+  if(a>=1)   return '$'+n.toFixed(o.d??2);
+  return '$'+n.toFixed(4);
+};
+const fmtN=(n,d=0)=>{
+  if(n==null||isNaN(n)) return '—';
+  if(Math.abs(n)>=1e9) return (n/1e9).toFixed(2)+'B';
+  if(Math.abs(n)>=1e6) return (n/1e6).toFixed(2)+'M';
+  if(Math.abs(n)>=1e3) return (n/1e3).toFixed(1)+'k';
+  return n.toFixed(d);
+};
+const fmtPct=(n,d=2)=>n==null?'—':(n>=0?'+':'')+n.toFixed(d)+'%';
+const setText=(id,v)=>{const el=$(id);if(!el)return;if(el.textContent!==String(v)){el.textContent=v;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),700);}};
+const setDelta=(id,v)=>{const el=$(id);if(!el)return;el.className='delta '+(v>0.01?'up':v<-0.01?'down':'flat');el.textContent=fmtPct(v,2);};
+const fetchJson=(u,opts={})=>fetch(u,opts).then(r=>{if(!r.ok)throw new Error(r.status+' on '+u);return r.json();});
+
+/* ─── ambient starfield (canvas) ───────────────────────────── */
+(function sky(){
+  const c=$('sky'),ctx=c.getContext('2d');
+  let W=0,H=0,stars=[],dpr=Math.min(2,window.devicePixelRatio||1);
+  function resize(){W=window.innerWidth;H=window.innerHeight;c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
+    stars=[];for(let i=0;i<260;i++)stars.push({x:Math.random()*W,y:Math.random()*H,z:Math.random(),s:Math.random()*1.4+.2,t:Math.random()*Math.PI*2});}
+  let last=performance.now();
+  function tick(now){
+    const dt=(now-last)/1000;last=now;
+    ctx.clearRect(0,0,W,H);
+    for(const s of stars){
+      s.t+=dt*(.4+s.z*.6);
+      const a=.25+Math.sin(s.t)*.25*(s.z+.3);
+      ctx.fillStyle=`rgba(${190+s.z*60|0},${200+s.z*40|0},${255-s.z*30|0},${a})`;
+      ctx.beginPath();ctx.arc(s.x,s.y,s.s*(1+s.z*.6),0,Math.PI*2);ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  window.addEventListener('resize',resize);resize();requestAnimationFrame(tick);
+  // expose pulse hook so block-arrival can flash a star
+  window.__skyPulse=()=>{for(let i=0;i<5;i++){const s=stars[Math.floor(Math.random()*stars.length)];s.t=Math.PI/2;s.s*=1.4;}};
+})();
+
+/* ─── heartbeat trace (every block tick) ───────────────────── */
+const HB={pts:[],path:$('hbTrace')};
+const hbW=600,hbH=36,hbMid=hbH/2;
+function hbStep(){
+  // shift left
+  HB.pts=HB.pts.map(p=>({x:p.x-1.2,y:p.y})).filter(p=>p.x>0);
+  // gentle baseline noise
+  HB.pts.push({x:hbW,y:hbMid+(Math.sin(performance.now()/600)*.6)});
+  let d='M0,'+hbMid;
+  for(const p of HB.pts) d+=' L'+p.x.toFixed(1)+','+p.y.toFixed(1);
+  HB.path.setAttribute('d',d);
+}
+function hbBeat(){
+  // inject a QRS-like spike at right edge
+  HB.pts.push({x:hbW-2,y:hbMid-2});
+  HB.pts.push({x:hbW-1,y:hbMid+10});
+  HB.pts.push({x:hbW  ,y:hbMid-16});
+  HB.pts.push({x:hbW+1,y:hbMid+5});
+  HB.pts.push({x:hbW+2,y:hbMid});
+  if(window.__skyPulse) window.__skyPulse();
+}
+setInterval(hbStep,40);
+
+/* ─── data loaders ─────────────────────────────────────────── */
+async function loadChain(){
+  const [block,pool,supply,infl,vals]=await Promise.all([
+    fetchJson(ENDPOINTS.lcd+'/cosmos/base/tendermint/v1beta1/blocks/latest').catch(()=>null),
+    fetchJson(ENDPOINTS.lcd+'/cosmos/staking/v1beta1/pool').catch(()=>null),
+    fetchJson(ENDPOINTS.lcd+'/cosmos/bank/v1beta1/supply/by_denom?denom=uluna').catch(()=>null),
+    fetchJson(ENDPOINTS.lcd+'/cosmos/mint/v1beta1/inflation').catch(()=>null),
+    fetchJson(ENDPOINTS.lcd+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=200').catch(()=>null),
+  ]);
+  if(block && block.block){
+    const h=parseInt(block.block.header.height);
+    const t=new Date(block.block.header.time).getTime();
+    if(STATE.height && h>STATE.height){
+      // record block-time gap
+      if(STATE.lastBlockMs) STATE.blockTimes.push((t-STATE.lastBlockMs)/1000);
+      STATE.blockTimes=STATE.blockTimes.slice(-30);
+      hbBeat();
+    }
+    STATE.height=h;STATE.lastBlockMs=t;
+    setText('blockHeight','#'+h.toLocaleString());
+  }
+  if(pool && pool.pool){STATE.pool=pool.pool;}
+  if(supply && supply.amount){STATE.supply=parseInt(supply.amount.amount);}
+  if(infl && infl.inflation){STATE.inflation=parseFloat(infl.inflation);}
+  if(vals && vals.validators){
+    STATE.validators=vals.validators.map(v=>({
+      name:v.description.moniker,
+      luna:parseInt(v.tokens)/1e6,
+      comm:parseFloat(v.commission.commission_rates.rate)*100,
+      addr:v.operator_address,
+    })).sort((a,b)=>b.luna-a.luna);
+  }
+  renderChain();
+}
+
+async function loadPrices(){
+  const ids=Object.keys(COIN_IDS).join(',');
+  // primary: CoinGecko (gives us mcap + 24h change in one call)
+  const cgUrl=`${ENDPOINTS.gecko}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`;
+  let data=await fetchJson(cgUrl).catch(()=>null);
+  if(data && data['terra-luna-2']){
+    STATE.prices=data;
+    try{localStorage.setItem('atlasPrices', JSON.stringify({t:Date.now(),d:data}));}catch{}
+    renderPrices();return;
+  }
+  // fallback: DefiLlama coins (no rate limit, but no mcap/change)
+  const cgKeys=ids.split(',').map(s=>'coingecko:'+s).join(',');
+  const llama=await fetchJson(`${ENDPOINTS.llamaCoins}/${cgKeys}`).catch(()=>null);
+  const pct=await fetchJson(`${ENDPOINTS.llamaPct}/${cgKeys}?lookForward=false&period=24h`).catch(()=>null);
+  if(llama && llama.coins){
+    const out={};
+    for(const id of Object.keys(COIN_IDS)){
+      const c=llama.coins['coingecko:'+id];
+      if(!c) continue;
+      out[id]={ usd:c.price, usd_24h_change:(pct&&pct.coins&&pct.coins['coingecko:'+id])||0, usd_market_cap:null, usd_24h_vol:null };
+    }
+    // patch in last known mcap from cache if available
+    try{
+      const cached=JSON.parse(localStorage.getItem('atlasPrices')||'null');
+      if(cached && cached.d){
+        for(const id of Object.keys(out)){
+          if(cached.d[id] && cached.d[id].usd_market_cap){
+            out[id].usd_market_cap = cached.d[id].usd_market_cap;
+          }
+        }
+      }
+    }catch{}
+    STATE.prices=out;renderPrices();return;
+  }
+  // final fallback: localStorage cache
+  try{
+    const cached=JSON.parse(localStorage.getItem('atlasPrices')||'null');
+    if(cached && cached.d){STATE.prices=cached.d;renderPrices();}
+  }catch{}
+}
+
+async function loadDefiLlama(){
+  const [protos,hist]=await Promise.all([
+    fetchJson(ENDPOINTS.llamaProtos).catch(()=>[]),
+    fetchJson(ENDPOINTS.llamaChainHist).catch(()=>[]),
+  ]);
+  STATE.protos=(protos||[])
+    .filter(p=>(p.chains||[]).includes('Terra2'))
+    .map(p=>({slug:p.slug,name:p.name,cat:p.category,url:p.url,tvl:(p.chainTvls&&p.chainTvls.Terra2)||0,gecko:p.gecko_id}))
+    .sort((a,b)=>b.tvl-a.tvl);
+  STATE.chainTvlHist=hist||[];
+  renderDeFi();
+}
+
+async function refreshAll(){
+  await Promise.all([loadChain(),loadPrices(),loadDefiLlama()]);
+  STATE.lastRefresh=Date.now();
+  setText('footerStamp', new Date().toLocaleTimeString('sv-SE'));
+  computeVibe();
+}
+
+/* ─── renderers ────────────────────────────────────────────── */
+function renderChain(){
+  if(STATE.validators.length){
+    setText('proseVals', STATE.validators.length);
+    const top10sum=STATE.validators.slice(0,10).reduce((a,v)=>a+v.luna,0);
+    setText('orbitTotal', fmtN(top10sum,1));
+  }
+  renderValidators();
+}
+
+function renderPrices(){
+  if(!STATE.prices) return;
+  const luna=STATE.prices['terra-luna-2'];
+  const amp=STATE.prices['eris-amplified-luna'];
+  const bone=STATE.prices['backbone-labs-staked-luna'];
+  const capa=STATE.prices['capapult'];
+  if(luna){
+    setText('lunaPrice','$'+luna.usd.toFixed(4));
+    setDelta('lunaDelta', luna.usd_24h_change);
+  }
+  // CAPA
+  if(capa){
+    setText('capaPrice','$'+capa.usd.toFixed(6));
+  }
+  drawTwinStars(luna,amp,bone);
+}
+
+function drawTwinStars(luna,amp,bone){
+  if(!luna || !amp || !bone) return;
+  const ampProto=STATE.protos.find(p=>p.slug==='eris-protocol');
+  const boneProto=STATE.protos.find(p=>p.slug==='backbone-labs');
+  const ampTvl=ampProto?.tvl||0, boneTvl=boneProto?.tvl||0;
+  const maxTvl=Math.max(ampTvl,boneTvl,1);
+  const ampR=20+Math.sqrt(ampTvl/maxTvl)*30;
+  const boneR=20+Math.sqrt(boneTvl/maxTvl)*30;
+  const ampRate=amp.usd/luna.usd;
+  const boneRate=bone.usd/luna.usd;
+  // ampLUNA orbit at distance based on rate ~ 2.08 → 130, ~1.7 → 110
+  const cx=350,cy=130;
+  const ampDist=80+ampRate*30;
+  const boneDist=70+boneRate*25;
+  // place at static angles for now (drift below animates them)
+  STATE.twin={ampDist,boneDist,ampRate,boneRate,ampR,boneR,ampTvl,boneTvl};
+  const orbits=$('twinOrbits');
+  if(orbits){
+    orbits.innerHTML=`
+      <circle cx="${cx}" cy="${cy}" r="${ampDist}" fill="none" stroke="rgba(255,106,214,.15)" stroke-dasharray="2 4"/>
+      <circle cx="${cx}" cy="${cy}" r="${boneDist}" fill="none" stroke="rgba(154,166,201,.12)" stroke-dasharray="2 4"/>
+    `;
+  }
+  const ampG=$('twinAmp'),boneG=$('twinBone');
+  ampG.querySelector('circle').setAttribute('r',ampR);
+  boneG.querySelector('circle').setAttribute('r',boneR);
+  setText('ampLine', `ampLUNA × ${ampRate.toFixed(2)}`);
+  setText('boneLine', `boneLUNA × ${boneRate.toFixed(2)}`);
+  // wire hover tooltips with full numbers
+  ampG.onmouseenter=()=>showTwinTip(ampG, `ampLUNA · $${amp.usd.toFixed(4)} · ${ampRate.toFixed(3)}× LUNA · ${fmtUsd(ampTvl)}`);
+  boneG.onmouseenter=()=>showTwinTip(boneG, `boneLUNA · $${bone.usd.toFixed(4)} · ${boneRate.toFixed(3)}× LUNA · ${fmtUsd(boneTvl)}`);
+  ampG.onmouseleave=hideTwinTip;
+  boneG.onmouseleave=hideTwinTip;
+}
+
+let twinTip=null;
+function showTwinTip(el,txt){
+  if(!twinTip){
+    twinTip=document.createElement('div');
+    twinTip.style.cssText='position:absolute;background:rgba(20,20,38,.95);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--ink-1);pointer-events:none;backdrop-filter:blur(12px);font-family:JetBrains Mono,monospace;letter-spacing:.02em;z-index:10;';
+    document.querySelector('.twin-card').appendChild(twinTip);
+  }
+  twinTip.textContent=txt;
+  twinTip.style.display='block';
+  const card=document.querySelector('.twin-card').getBoundingClientRect();
+  const r=el.getBoundingClientRect();
+  twinTip.style.left=(r.left-card.left+r.width/2-100)+'px';
+  twinTip.style.top=(r.top-card.top-40)+'px';
+}
+function hideTwinTip(){if(twinTip)twinTip.style.display='none'}
+
+/* twin star orbital motion */
+let twinT=0;
+function twinTick(){
+  twinT+=.0015;
+  const t=STATE.twin;
+  if(t){
+    const cx=350,cy=130;
+    const ax=cx+Math.cos(twinT)*t.ampDist;
+    const ay=cy+Math.sin(twinT)*t.ampDist;
+    const bx=cx+Math.cos(-twinT*1.4+1.8)*t.boneDist;
+    const by=cy+Math.sin(-twinT*1.4+1.8)*t.boneDist;
+    const ampG=$('twinAmp'),boneG=$('twinBone');
+    if(ampG) ampG.setAttribute('transform',`translate(${ax.toFixed(1)} ${ay.toFixed(1)})`);
+    if(boneG) boneG.setAttribute('transform',`translate(${bx.toFixed(1)} ${by.toFixed(1)})`);
+  }
+  requestAnimationFrame(twinTick);
+}
+requestAnimationFrame(twinTick);
+
+function renderDeFi(){
+  if(STATE.chainTvlHist.length){
+    const last=STATE.chainTvlHist[STATE.chainTvlHist.length-1].tvl;
+    setText('proseTvl', fmtUsd(last));
+    drawTvlChart();
+  }
+  setText('proseProtos', STATE.protos.filter(p=>p.tvl>1000).length);
+  // alive list — names only, no $ tags
+  const alive=STATE.protos.filter(p=>p.tvl>0).slice(0,12);
+  $('aliveList').innerHTML=alive.map(p=>`<li><span class="nm">${p.name}</span></li>`).join('');
+  // SOLID
+  const solidProto=STATE.protos.find(p=>p.slug==='solid'||p.name==='SOLID');
+  if(solidProto) setText('solidTvl', fmtUsd(solidProto.tvl));
+  // re-render twin stars now that we have TVL
+  if(STATE.prices){
+    drawTwinStars(STATE.prices['terra-luna-2'],STATE.prices['eris-amplified-luna'],STATE.prices['backbone-labs-staked-luna']);
+  }
+  drawConstellation();
+}
+
+function normCat(c){
+  c=(c||'').toLowerCase();
+  if(c.includes('dex'))return'dex';
+  if(c.includes('liquid')||c.includes('lst')||c.includes('staking'))return'lst';
+  if(c.includes('cdp')||c.includes('lending'))return'cdp';
+  if(c.includes('yield')||c.includes('vault'))return'yld';
+  if(c.includes('bridge')||c.includes('cross'))return'brg';
+  if(c.includes('nft')||c.includes('marketplace'))return'nft';
+  if(c.includes('dao')||c.includes('treasury')||c.includes('launchpad'))return'dao';
+  return'brg';
+}
+
+/* ─── tide chart (TVL — organic, no axes) ──────────────────── */
+function drawTvlChart(){
+  const data=STATE.chainTvlHist.slice(-30);
+  if(!data.length)return;
+  const W=600,H=280,padL=20,padR=20,padT=30,padB=10;
+  const xs=(i)=>padL+(W-padL-padR)*(i/(data.length-1));
+  const tvls=data.map(d=>d.tvl);
+  const min=Math.min(...tvls)*.94;
+  const max=Math.max(...tvls)*1.04;
+  const ys=(v)=>padT+(H-padT-padB)*(1-(v-min)/(max-min));
+  // smooth curve via cardinal-like bezier
+  let line='M'+xs(0)+','+ys(data[0].tvl);
+  for(let i=0;i<data.length-1;i++){
+    const x1=xs(i),y1=ys(data[i].tvl);
+    const x2=xs(i+1),y2=ys(data[i+1].tvl);
+    const cx=(x1+x2)/2;
+    line+=` C${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+  }
+  const area=line+` L${xs(data.length-1)} ${H-padB} L${padL} ${H-padB} Z`;
+  // secondary echo offset upward for ambient depth
+  const echo=line.replace(/M([\d.]+),([\d.]+)/,(m,x,y)=>`M${x},${parseFloat(y)-12}`);
+  $('tvlLine').setAttribute('d',line);
+  $('tvlArea').setAttribute('d',area);
+  const a2=$('tvlArea2');if(a2) a2.setAttribute('d',echo+` L${xs(data.length-1)} ${H-padB} L${padL} ${H-padB} Z`);
+  const lastX=xs(data.length-1),lastY=ys(data[data.length-1].tvl);
+  $('tvlNowDot').setAttribute('cx',lastX);$('tvlNowDot').setAttribute('cy',lastY);
+  setText('tideRange',
+    new Date(data[0].date*1000).toLocaleDateString('sv-SE',{month:'short',day:'numeric'})+
+    ' → '+
+    new Date(data[data.length-1].date*1000).toLocaleDateString('sv-SE',{month:'short',day:'numeric'}));
+  setText('tideHi',fmtUsd(Math.max(...tvls)));
+  setText('tideLo',fmtUsd(Math.min(...tvls)));
+}
+
+/* ─── constellation render ─────────────────────────────────── */
+let cnDriftT=0;
+function drawConstellation(){
+  // merge live TVL into DAPPS
+  const tvls=Object.fromEntries(STATE.protos.map(p=>[p.slug,p.tvl]));
+  const all=DAPPS.map(d=>{
+    const tvl=tvls[d.slug]??0;
+    return {...d,tvl,dim:(d.dim||(tvl<5000 && !d.coming))};
+  });
+  const maxTvl=Math.max(...all.map(d=>d.tvl||0),1);
+  // links between dApps that share liquidity (Astroport ↔ all DEX/LST + SOLID)
+  const linksTo=['astroport'];
+  const links=[];
+  for(const a of linksTo){
+    const A=all.find(x=>x.slug===a);if(!A)continue;
+    for(const b of all){
+      if(b.slug===a)continue;
+      if(['lst','cdp'].includes(b.cat) || (b.cat==='dex' && b.slug!=='ura-dex') || b.slug==='solid' || b.slug==='astral'){
+        links.push({a:A,b});
+      }
+    }
+  }
+  $('cnLinks').innerHTML=links.map(l=>`<line class="cn-link" x1="${l.a.x}" y1="${l.a.y}" x2="${l.b.x}" y2="${l.b.y}"/>`).join('');
+  // nodes
+  $('cnNodes').innerHTML=all.map(d=>{
+    const info=CAT_INFO[d.cat]||CAT_INFO.brg;
+    const r=8+Math.sqrt((d.tvl||0)/maxTvl)*42;
+    const haloR=r*1.8;
+    const featured=d.featured?'<circle class="bg" r="'+(r+9)+'" fill="none" stroke="'+info.fill+'" stroke-opacity=".4" stroke-dasharray="2 3"/>':'';
+    return `<g class="cn-node ${d.dim?'dim':''}" data-slug="${d.slug}" transform="translate(${d.x} ${d.y})">
+      <circle class="bg" r="${haloR}" fill="url(#${info.halo})"/>
+      ${featured}
+      <circle class="core" r="${r}" fill="${info.fill}"/>
+      <text y="${r+18}">${d.name}</text>
+      <text class="tvl" y="${r+30}">${d.tvl?fmtUsd(d.tvl):d.coming?'soon':'—'}</text>
+    </g>`;
+  }).join('');
+  // wire interactions
+  document.querySelectorAll('.cn-node').forEach(n=>{
+    n.addEventListener('click',()=>showDetail(n.dataset.slug));
+    n.addEventListener('mouseenter',e=>showTip(n.dataset.slug,e));
+    n.addEventListener('mouseleave',hideTip);
+    n.addEventListener('mousemove',moveTip);
+  });
+}
+
+/* gentle drift loop */
+(function drift(){
+  cnDriftT+=.005;
+  document.querySelectorAll('.cn-node').forEach((n,i)=>{
+    const slug=n.dataset.slug;const d=DAPPS.find(x=>x.slug===slug);if(!d)return;
+    const dx=Math.sin(cnDriftT+i*.7)*4;
+    const dy=Math.cos(cnDriftT*.9+i)*3;
+    n.setAttribute('transform',`translate(${d.x+dx} ${d.y+dy})`);
+  });
+  requestAnimationFrame(drift);
+})();
+
+/* ─── tooltip ──────────────────────────────────────────────── */
+let tipEl=null;
+function showTip(slug,e){
+  const d=DAPPS.find(x=>x.slug===slug);if(!d)return;
+  const tvls=Object.fromEntries(STATE.protos.map(p=>[p.slug,p.tvl]));
+  const tvl=tvls[slug]??0;
+  if(!tipEl){tipEl=document.createElement('div');tipEl.className='cn-tip';$('constellation').appendChild(tipEl);}
+  const info=CAT_INFO[d.cat]||CAT_INFO.brg;
+  tipEl.innerHTML=`
+    <h4><i style="background:${info.fill}"></i>${d.name}${d.featured?' <span style="color:var(--aurora-vio);font-size:10px;letter-spacing:.18em;margin-left:4px">★ SOLID</span>':''}</h4>
+    <div class="cat">${info.label}${d.coming?' · upcoming':''}${d.dim?' · dormant':''}</div>
+    <p>${d.desc}</p>
+    <div class="row"><span>tvl on terra2</span><span>${tvl?fmtUsd(tvl):'—'}</span></div>
+    <a class="go" target="_blank" rel="noopener" href="${d.url}">visit ↗</a>`;
+  setTimeout(()=>tipEl.classList.add('show'),0);
+  moveTip(e);
+}
+function moveTip(e){
+  if(!tipEl)return;
+  const r=$('constellation').getBoundingClientRect();
+  const x=Math.min(r.width-280, Math.max(8, e.clientX-r.left+12));
+  const y=Math.min(r.height-180,Math.max(8, e.clientY-r.top-8));
+  tipEl.style.left=x+'px';tipEl.style.top=y+'px';
+}
+function hideTip(){if(tipEl)tipEl.classList.remove('show');}
+
+/* ─── detail panel ─────────────────────────────────────────── */
+function showDetail(slug){
+  const d=DAPPS.find(x=>x.slug===slug);if(!d)return;
+  STATE.detailFor=slug;
+  const tvls=Object.fromEntries(STATE.protos.map(p=>[p.slug,p.tvl]));
+  const proto=STATE.protos.find(p=>p.slug===slug);
+  const info=CAT_INFO[d.cat]||CAT_INFO.brg;
+  $('dHead').innerHTML=`<i style="background:${info.fill}"></i>${d.name}`;
+  $('dCat').textContent=info.label+(d.coming?' · upcoming':d.dim?' · dormant':' · live');
+  $('dDesc').innerHTML=d.desc;
+  let stats=`<div class="row"><span>terra2 TVL</span><span>${proto?fmtUsd(proto.tvl):'—'}</span></div>`;
+  if(proto){stats+=`<div class="row"><span>defillama slug</span><span>${proto.slug}</span></div>`;}
+  if(d.coming){stats+=`<div class="row"><span>status</span><span>shipping in 2026</span></div>`;}
+  if(d.featured){stats+=`<div class="row"><span>position</span><span>solid protocol</span></div>`;}
+  $('dStats').innerHTML=stats;
+  $('dLink').href=d.url||'#';
+  $('detail').classList.add('open');
+  $('scrim').classList.add('open');
+}
+$('detailClose').onclick=()=>{$('detail').classList.remove('open');$('scrim').classList.remove('open');};
+$('scrim').onclick=()=>{$('detail').classList.remove('open');$('scrim').classList.remove('open');};
+
+/* ─── validators ───────────────────────────────────────────── */
+function renderValidators(){
+  const vs=STATE.validators.slice(0,10);
+  if(!vs.length)return;
+  const cx=500,cy=260;
+  const max=vs[0].luna;
+  const planetsHtml=vs.map((v,i)=>{
+    const orbitR=130+(i%3)*55;
+    const angle=(i/vs.length)*Math.PI*2 + (i*.5);
+    const x=cx+Math.cos(angle)*orbitR;
+    const y=cy+Math.sin(angle)*orbitR;
+    const r=8+Math.sqrt(v.luna/max)*18;
+    return `<g class="planet" data-i="${i}" data-name="${v.name}" data-luna="${fmtN(v.luna,1)}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">
+      <circle r="${r.toFixed(1)}"/>
+      <text y="${(r+14).toFixed(1)}">${shortName(v.name)}</text>
+    </g>`;
+  }).join('');
+  $('orbitPlanets').innerHTML=planetsHtml;
+  // hover tooltip on planets
+  document.querySelectorAll('#orbitPlanets .planet').forEach(p=>{
+    p.addEventListener('mouseenter',e=>showOrbitTip(p));
+    p.addEventListener('mouseleave',hideOrbitTip);
+  });
+  startOrbit();
+}
+let orbitTip=null;
+function showOrbitTip(p){
+  if(!orbitTip){
+    orbitTip=document.createElement('div');
+    orbitTip.style.cssText='position:absolute;background:rgba(20,20,38,.95);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--ink-1);pointer-events:none;backdrop-filter:blur(12px);font-family:JetBrains Mono,monospace;z-index:10;';
+    $('orbit').appendChild(orbitTip);
+  }
+  orbitTip.innerHTML=`<b style="color:var(--aurora-cyan)">${p.dataset.name}</b><br><span style="color:var(--ink-2)">${p.dataset.luna} LUNA</span>`;
+  orbitTip.style.display='block';
+  const r=p.getBoundingClientRect();
+  const o=$('orbit').getBoundingClientRect();
+  orbitTip.style.left=(r.left-o.left+r.width/2-80)+'px';
+  orbitTip.style.top=(r.top-o.top-50)+'px';
+}
+function hideOrbitTip(){if(orbitTip)orbitTip.style.display='none'}
+function shortName(n){return n.length>18?n.slice(0,17)+'…':n}
+let orbitT=0,orbitStarted=false;
+function startOrbit(){
+  if(orbitStarted)return;orbitStarted=true;
+  function tick(){
+    orbitT+=.0022;
+    const cx=500,cy=260;
+    const vs=STATE.validators.slice(0,10);
+    document.querySelectorAll('#orbitPlanets .planet').forEach((g,i)=>{
+      const orbitR=130+(i%3)*55;
+      const angle=(i/vs.length)*Math.PI*2 + (i*.5) + orbitT*(1-i*.04);
+      const x=cx+Math.cos(angle)*orbitR;
+      const y=cy+Math.sin(angle)*orbitR;
+      g.setAttribute('transform',`translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ─── ecosystem vibe ───────────────────────────────────────── */
+function computeVibe(){
+  // 3 metrics each 0..1
+  let tvlScore=.5;
+  if(STATE.chainTvlHist.length>=8){
+    const last=STATE.chainTvlHist[STATE.chainTvlHist.length-1].tvl;
+    const wk=STATE.chainTvlHist[Math.max(0,STATE.chainTvlHist.length-8)].tvl;
+    const d=(last-wk)/wk;
+    tvlScore=Math.max(0,Math.min(1, .5+d*8)); // ±12.5% maps to 0..1
+  }
+  let pxScore=.5;
+  if(STATE.prices && STATE.prices['terra-luna-2']){
+    const c=STATE.prices['terra-luna-2'].usd_24h_change/100;
+    pxScore=Math.max(0,Math.min(1, .5+c*5)); // ±10% → 0..1
+  }
+  const liveCount=STATE.protos.filter(p=>p.tvl>5000).length;
+  const totalCount=DAPPS.length;
+  const actScore=Math.min(1, liveCount/Math.max(8,totalCount));
+  setRing('ringTvl',tvlScore);
+  setRing('ringPx',pxScore);
+  setRing('ringAct',actScore);
+  const total=(tvlScore+pxScore+actScore)/3;
+  const word=total>.7?'soaring':total>.55?'rising':total>.45?'steady':total>.3?'cooling':'quiet';
+  setText('vibeWord', word);
+  setText('vibeScore', `${(total*100).toFixed(0)} / 100`);
+  setText('proseMood', word);
+}
+function setRing(id,score){
+  const el=$(id);if(!el)return;
+  const v=Math.max(0,Math.min(1,score))*100;
+  el.setAttribute('stroke-dasharray',`${v.toFixed(2)} ${(100-v).toFixed(2)}`);
+}
+
+/* ─── refresh-age ticker ───────────────────────────────────── */
+setInterval(()=>{
+  if(!STATE.lastRefresh){setText('refreshAge','—');return;}
+  const s=Math.floor((Date.now()-STATE.lastRefresh)/1000);
+  setText('refreshAge', s<60?s+'s':Math.floor(s/60)+'m');
+},1000);
+
+/* ─── boot ─────────────────────────────────────────────────── */
+(async function boot(){
+  // hydrate from cache for instant paint
+  try{
+    const cached=JSON.parse(localStorage.getItem('atlasPrices')||'null');
+    if(cached && cached.d){STATE.prices=cached.d;renderPrices();}
+  }catch{}
+  drawConstellation(); // initial empty render so stars show pre-data
+  await refreshAll();
+  setInterval(()=>{loadChain().catch(()=>{});}, 6000);
+  setInterval(()=>{loadPrices().catch(()=>{});}, 30000);
+  setInterval(()=>{loadDefiLlama().catch(()=>{});}, 60000);
+  setInterval(()=>{STATE.lastRefresh=Date.now();setText('footerStamp', new Date().toLocaleTimeString('sv-SE'));}, 15000);
+})();
+</script>
+</body>
+</html>
