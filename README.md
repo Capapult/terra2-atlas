@@ -50,11 +50,22 @@ No build step. No npm. No keys.
 
 ## Deploy
 
-Drop `index.html` on any static host (Cloudflare Pages, Vercel, GitHub Pages, S3+CloudFront). Suggested public URLs:
+Live at **<https://terra2-atlas.vercel.app>**.
 
-- `terra2.solidcapa.com`
+Manual deploy (production):
+```bash
+vercel deploy --prod --scope capapult
+```
+
+To enable GitHub auto-deploy:
+
+1. Visit <https://vercel.com/capapult/terra2-atlas/settings/git>
+2. Connect the GitHub repo (`Capapult/terra2-atlas`) — authorize the Vercel GitHub App for the Capapult org if prompted
+3. Every `git push origin main` will then deploy automatically
+
+Suggested custom domains:
 - `atlas.solidcapa.com`
-- `phoenix-1.solidcapa.com`
+- `terra2.solidcapa.com`
 
 ## Files
 
